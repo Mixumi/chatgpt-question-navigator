@@ -34,7 +34,7 @@
 
 ## 效果展示
 
-![screenshot](../screenshot.png)
+![screenshot](./screenshot.png)
 
 ---
 
@@ -74,4 +74,4 @@ A Chrome browser extension that enhances the ChatGPT experience by adding a ques
 
 ## Screenshot
 
-![screenshot](../screenshot.png)
+![screenshot](./screenshot.png)
