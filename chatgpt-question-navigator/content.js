@@ -55,6 +55,9 @@ function updateFloatingToggleButton() {
   button.setAttribute('aria-expanded', String(!sidebarCollapsed));
   button.dataset.state = sidebarCollapsed ? 'collapsed' : 'expanded';
   button.title = sidebarCollapsed ? '显示问题导航栏' : '隐藏问题导航栏';
+  const shouldShowButton = sidebarCollapsed;
+  button.style.display = shouldShowButton ? '' : 'none';
+  button.setAttribute('aria-hidden', String(!shouldShowButton));
 }
 
 function applySidebarVisibility() {
