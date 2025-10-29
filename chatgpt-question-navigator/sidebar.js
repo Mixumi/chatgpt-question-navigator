@@ -15,12 +15,33 @@ applySystemTheme();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySystemTheme);
 
 
+const toggleVisibilityButton = document.getElementById('toggle-visibility');
+let isSidebarCollapsed = false;
+
+function updateToggleVisibilityButton(collapsed) {
+  if (!toggleVisibilityButton) return;
+  isSidebarCollapsed = collapsed;
+  toggleVisibilityButton.dataset.collapsed = collapsed ? 'true' : 'false';
+  toggleVisibilityButton.setAttribute('aria-expanded', String(!collapsed));
+}
+
+if (toggleVisibilityButton) {
+  toggleVisibilityButton.addEventListener('click', () => {
+    updateToggleVisibilityButton(!isSidebarCollapsed);
+    window.parent.postMessage({ type: 'toggle-sidebar-visibility' }, '*');
+  });
+}
+
+updateToggleVisibilityButton(false);
+
+
 window.addEventListener('message', (event) => {
-  if (event.data.type === 'chatgpt-questions') {
+  const data = event.data || {};
+  if (data.type === 'chatgpt-questions') {
     const list = document.getElementById('question-list');
     list.innerHTML = '';
 
-    event.data.questions.forEach((question, idx) => {
+    data.questions.forEach((question, idx) => {
       const li = document.createElement('li');
       const previewText = question.length > 50 ? question.substring(0, 50) + '...' : question;
       li.textContent = `${idx + 1}. ${previewText}`;
@@ -34,6 +55,8 @@ window.addEventListener('message', (event) => {
       };
       list.appendChild(li);
     });
+  } else if (data.type === 'sidebar-visibility-changed') {
+    updateToggleVisibilityButton(Boolean(data.collapsed));
   }
 });
 
