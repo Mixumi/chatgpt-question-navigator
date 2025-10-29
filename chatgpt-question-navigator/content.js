@@ -1,5 +1,105 @@
 // 存储所有问题的缓存数组，包含问题文本和对应的DOM元素引用
 let cachedQuestions = [];
+let sidebarCollapsed = false;
+
+function ensureSidebarStyles() {
+  if (document.getElementById('chatgpt-sidebar-style')) return;
+  const style = document.createElement('style');
+  style.id = 'chatgpt-sidebar-style';
+  style.textContent = `
+    #chatgpt-question-sidebar-iframe.chatgpt-sidebar-hidden {
+      display: none !important;
+    }
+
+    .chatgpt-sidebar-floating-toggle {
+      position: fixed;
+      top: 88px;
+      right: 24px;
+      z-index: 2147483647;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      background-color: #ffffff;
+      color: #1f2933;
+      font-size: 14px;
+      line-height: 1.2;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .chatgpt-sidebar-floating-toggle:hover {
+      background-color: #f3f4f6;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .chatgpt-sidebar-floating-toggle {
+        background-color: #1f2933;
+        color: #f9fafb;
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.6);
+      }
+
+      .chatgpt-sidebar-floating-toggle:hover {
+        background-color: #2d3748;
+      }
+    }
+  `;
+  (document.head || document.documentElement).appendChild(style);
+}
+
+function updateFloatingToggleButton() {
+  const button = document.getElementById('chatgpt-sidebar-toggle-button');
+  if (!button) return;
+  button.textContent = sidebarCollapsed ? '显示问题导航' : '隐藏问题导航';
+  button.setAttribute('aria-expanded', String(!sidebarCollapsed));
+  button.dataset.state = sidebarCollapsed ? 'collapsed' : 'expanded';
+  button.title = sidebarCollapsed ? '显示问题导航栏' : '隐藏问题导航栏';
+}
+
+function applySidebarVisibility() {
+  const iframe = document.getElementById('chatgpt-question-sidebar-iframe');
+  if (!iframe) return;
+
+  iframe.classList.toggle('chatgpt-sidebar-hidden', sidebarCollapsed);
+  if (!sidebarCollapsed) {
+    adjustSidebar();
+  }
+
+  if (iframe.dataset.loaded === 'true') {
+    iframe.contentWindow?.postMessage({
+      type: 'sidebar-visibility-changed',
+      collapsed: sidebarCollapsed
+    }, '*');
+  }
+}
+
+function setSidebarCollapsed(collapsed) {
+  sidebarCollapsed = collapsed;
+  applySidebarVisibility();
+  updateFloatingToggleButton();
+}
+
+function ensureFloatingToggleButton() {
+  if (!document.body) {
+    document.addEventListener('DOMContentLoaded', ensureFloatingToggleButton, { once: true });
+    return;
+  }
+
+  let button = document.getElementById('chatgpt-sidebar-toggle-button');
+  if (!button) {
+    button = document.createElement('button');
+    button.id = 'chatgpt-sidebar-toggle-button';
+    button.type = 'button';
+    button.className = 'chatgpt-sidebar-floating-toggle';
+    button.addEventListener('click', () => {
+      setSidebarCollapsed(!sidebarCollapsed);
+    });
+    document.body.appendChild(button);
+  }
+
+  updateFloatingToggleButton();
+}
 
 /**
  * 注入侧边栏 iframe 到页面中
@@ -7,6 +107,9 @@ let cachedQuestions = [];
  * 设置iframe的样式和位置，并监听加载完成事件
  */
 function injectSidebarIframe() {
+  ensureSidebarStyles();
+  ensureFloatingToggleButton();
+
   // 如果已经存在侧边栏iframe，则不再重复创建
   if (document.getElementById('chatgpt-question-sidebar-iframe')) return;
 
@@ -36,8 +139,9 @@ function injectSidebarIframe() {
 
   // 监听iframe加载完成事件
   iframe.onload = () => {
+    iframe.dataset.loaded = 'true';
     updateQuestions();
-    adjustSidebar();
+    applySidebarVisibility();
   };
 
   // 监听窗口大小变化，调整侧边栏位置
@@ -50,12 +154,12 @@ function injectSidebarIframe() {
  */
 function adjustSidebar() {
   const iframe = document.getElementById('chatgpt-question-sidebar-iframe');
+  if (!iframe || sidebarCollapsed || iframe.classList.contains('chatgpt-sidebar-hidden')) return;
+
   const pageHeader = document.getElementById('page-header');
   const sidebar = document.getElementById('sidebar');
   const threadBottomLine = document.getElementById('thread-bottom');
   const threadBottomForm = threadBottomLine?.querySelector("form");
-
-  if (!iframe) return;
 
   // 获取页面头部和侧边栏的位置信息，如果元素不存在则使用默认值0
   const pageHeaderRect = pageHeader?.getBoundingClientRect() || { bottom: 0, top: 0, height: 0 };
@@ -135,7 +239,20 @@ function scrollToQuestion(index) {
 
 // 监听来自iframe的消息，处理各种滚动和刷新操作
 window.addEventListener('message', (event) => {
-  const { type, index } = event.data;
+  const data = event.data || {};
+  const { type, index } = data;
+
+  if (type === 'toggle-sidebar-visibility') {
+    setSidebarCollapsed(!sidebarCollapsed);
+    return;
+  }
+
+  if (type === 'refresh') {
+    // 刷新问题列表
+    updateQuestions();
+    return;
+  }
+
   const container = document.querySelector('#thread .overflow-y-auto');
   if (!container) return;
 
@@ -149,9 +266,6 @@ window.addEventListener('message', (event) => {
   } else if (type === 'scroll-to-question') {
     // 滚动到指定问题
     scrollToQuestion(index);
-  } else if (type === 'refresh') {
-    // 刷新问题列表
-    updateQuestions();
   }
 });
 

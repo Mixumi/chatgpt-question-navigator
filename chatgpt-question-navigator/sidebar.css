@@ -76,6 +76,30 @@ button:hover {
   background-color: var(--button-hover-bg);
 }
 
+#toggle-visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#toggle-visibility .toggle-visibility-icon,
+#toggle-visibility .toggle-visibility-text {
+  display: inline-flex;
+  align-items: center;
+}
+
+#toggle-visibility .state-hidden {
+  display: none;
+}
+
+#toggle-visibility[data-collapsed="true"] .state-hidden {
+  display: inline-flex;
+}
+
+#toggle-visibility[data-collapsed="true"] .state-visible {
+  display: none;
+}
+
 /* ==========================
    问题列表区域
 ========================== */
